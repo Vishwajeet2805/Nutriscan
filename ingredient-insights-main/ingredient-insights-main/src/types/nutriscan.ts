@@ -21,6 +21,7 @@ export interface UserProfile {
   allergies: string[];
   dietaryRestrictions: string[];
   healthGoals: string[];
+  healthIssues: string[];
 }
 
 export interface ChatMessage {
@@ -28,4 +29,11 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+}
+
+export interface ScanHistoryItem {
+  id: string;
+  inputLabel: string;
+  result: AnalysisResult;
+  scannedAt: string; // ISO date string
 }
