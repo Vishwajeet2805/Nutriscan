@@ -5,7 +5,9 @@ import { HeroSection } from '@/components/nutriscan/HeroSection';
 import { IngredientInput } from '@/components/nutriscan/IngredientInput';
 import { AnalysisView } from '@/components/nutriscan/AnalysisView';
 import { ProfileSheet } from '@/components/nutriscan/ProfileSheet';
+import { ScanHistory } from '@/components/nutriscan/ScanHistory';
 import { useUserProfile } from '@/hooks/useUserProfile';
+import { useScanHistory } from '@/hooks/useScanHistory';
 import { AnalysisResult } from '@/types/nutriscan';
 
 type AppView = 'home' | 'input' | 'analysis';
@@ -18,10 +20,12 @@ export default function Index() {
   const [originalInput, setOriginalInput] = useState('');
   
   const { profile, updateProfile, isLoaded } = useUserProfile();
+  const { history, addScan, removeScan, clearHistory } = useScanHistory();
 
   const handleAnalyze = async (input: string, isImage: boolean, imageBase64?: string) => {
     setIsAnalyzing(true);
-    setOriginalInput(isImage ? 'Image scan' : input);
+    const inputLabel = isImage ? 'Image scan' : input.slice(0, 100);
+    setOriginalInput(inputLabel);
 
     try {
       const response = await fetch(
@@ -52,14 +56,23 @@ export default function Index() {
       }
 
       setAnalysisResult(result);
-      setOriginalInput(isImage ? 'Image scan' : input);
+      setOriginalInput(inputLabel);
       setView('analysis');
+      
+      // Save to history
+      addScan(inputLabel, result);
     } catch (error) {
       console.error('Analysis error:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to analyze ingredients');
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const handleSelectFromHistory = (result: AnalysisResult, inputLabel: string) => {
+    setAnalysisResult(result);
+    setOriginalInput(inputLabel);
+    setView('analysis');
   };
 
   return (
@@ -103,6 +116,16 @@ export default function Index() {
                 </p>
               </div>
             </div>
+          </section>
+
+          {/* Scan History */}
+          <section className="container mx-auto px-4 pb-12 max-w-2xl">
+            <ScanHistory
+              history={history}
+              onSelectScan={handleSelectFromHistory}
+              onRemoveScan={removeScan}
+              onClearHistory={clearHistory}
+            />
           </section>
         </>
       )}
