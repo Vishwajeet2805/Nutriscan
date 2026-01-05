@@ -16,6 +16,7 @@ interface ProfileSheetProps {
 const commonAllergies = ['Peanuts', 'Tree nuts', 'Milk', 'Eggs', 'Wheat', 'Soy', 'Fish', 'Shellfish', 'Sesame'];
 const commonDiets = ['Vegan', 'Vegetarian', 'Keto', 'Paleo', 'Gluten-free', 'Dairy-free', 'Low sodium', 'Low sugar'];
 const commonGoals = ['Weight loss', 'Muscle gain', 'Heart health', 'Blood sugar control', 'Reduce inflammation', 'Clean eating'];
+const commonHealthIssues = ['Diabetes', 'High blood pressure', 'High cholesterol', 'Heart disease', 'Thyroid disorder', 'IBS', 'GERD', 'Kidney disease'];
 
 function TagInput({ 
   label, 
@@ -134,6 +135,15 @@ export function ProfileSheet({ isOpen, onClose, profile, onUpdateProfile }: Prof
             onAdd={(item) => onUpdateProfile({ healthGoals: [...profile.healthGoals, item] })}
             onRemove={(item) => onUpdateProfile({ healthGoals: profile.healthGoals.filter(g => g !== item) })}
             placeholder="Add a goal..."
+          />
+
+          <TagInput
+            label="🏥 Health Issues"
+            items={profile.healthIssues}
+            suggestions={commonHealthIssues}
+            onAdd={(item) => onUpdateProfile({ healthIssues: [...profile.healthIssues, item] })}
+            onRemove={(item) => onUpdateProfile({ healthIssues: profile.healthIssues.filter(h => h !== item) })}
+            placeholder="Add a health issue..."
           />
         </div>
 
