@@ -1,68 +1,135 @@
 import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { ScanHistoryItem, AnalysisResult } from '@/types/nutriscan';
-
-const STORAGE_KEY = 'nutriview-scan-history';
-const EIGHT_WEEKS_MS = 8 * 7 * 24 * 60 * 60 * 1000; // 8 weeks in milliseconds
+import { useAuth } from './useAuth';
 
 export function useScanHistory() {
+  const { user } = useAuth();
   const [history, setHistory] = useState<ScanHistoryItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load history and clean up expired items
+  // Fetch history from database
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed: ScanHistoryItem[] = JSON.parse(stored);
-        const now = Date.now();
-        
-        // Filter out items older than 8 weeks
-        const validItems = parsed.filter((item) => {
-          const scannedTime = new Date(item.scannedAt).getTime();
-          return now - scannedTime < EIGHT_WEEKS_MS;
-        });
-        
-        // Save cleaned up list back to storage if items were removed
-        if (validItems.length !== parsed.length) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(validItems));
-        }
-        
-        setHistory(validItems);
-      } catch (e) {
-        console.error('Failed to parse scan history', e);
-        setHistory([]);
-      }
+    if (!user) {
+      setHistory([]);
+      setIsLoaded(true);
+      return;
     }
-    setIsLoaded(true);
-  }, []);
 
-  const addScan = useCallback((inputLabel: string, result: AnalysisResult) => {
-    const newItem: ScanHistoryItem = {
-      id: crypto.randomUUID(),
-      inputLabel,
-      result,
-      scannedAt: new Date().toISOString(),
+    const fetchHistory = async () => {
+      // Fetch only non-expired items (expires_at > now)
+      const { data, error } = await supabase
+        .from('scan_history')
+        .select('*')
+        .eq('user_id', user.id)
+        .gt('expires_at', new Date().toISOString())
+        .order('scanned_at', { ascending: false })
+        .limit(50);
+
+      if (error) {
+        console.error('Failed to fetch scan history:', error);
+        setIsLoaded(true);
+        return;
+      }
+
+      if (data) {
+        // For history display, we store a simplified result
+        // The full result is only shown when viewing the analysis
+        const items: ScanHistoryItem[] = data.map((row) => ({
+          id: row.id,
+          inputLabel: row.product_name,
+          result: {
+            overallScore: row.health_score,
+            verdict: getVerdictFromScore(row.health_score),
+            summary: `Scanned on ${new Date(row.scanned_at).toLocaleDateString()}`,
+            ingredients: row.ingredients.map((name: string) => ({
+              name,
+              level: 'safe' as const,
+              description: '',
+              reasoning: '',
+            })),
+            personalizedAlerts: [],
+          },
+          scannedAt: row.scanned_at,
+        }));
+        setHistory(items);
+      }
+      setIsLoaded(true);
     };
 
-    setHistory((prev) => {
-      const updated = [newItem, ...prev].slice(0, 50); // Keep max 50 items
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      return updated;
-    });
-  }, []);
+    fetchHistory();
+  }, [user]);
 
-  const removeScan = useCallback((id: string) => {
-    setHistory((prev) => {
-      const updated = prev.filter((item) => item.id !== id);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      return updated;
-    });
-  }, []);
+  const addScan = useCallback(async (inputLabel: string, result: AnalysisResult) => {
+    if (!user) return;
 
-  const clearHistory = useCallback(() => {
+    const { data, error } = await supabase
+      .from('scan_history')
+      .insert({
+        user_id: user.id,
+        product_name: inputLabel,
+        ingredients: result.ingredients.map(i => i.name),
+        health_score: result.overallScore,
+        risk_level: result.verdict.toLowerCase(),
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Failed to save scan:', error);
+      return;
+    }
+
+    if (data) {
+      const newItem: ScanHistoryItem = {
+        id: data.id,
+        inputLabel,
+        result,
+        scannedAt: data.scanned_at,
+      };
+      setHistory((prev) => [newItem, ...prev].slice(0, 50));
+    }
+  }, [user]);
+
+  const removeScan = useCallback(async (id: string) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('scan_history')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('Failed to delete scan:', error);
+      return;
+    }
+
+    setHistory((prev) => prev.filter((item) => item.id !== id));
+  }, [user]);
+
+  const clearHistory = useCallback(async () => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('scan_history')
+      .delete()
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('Failed to clear history:', error);
+      return;
+    }
+
     setHistory([]);
-    localStorage.removeItem(STORAGE_KEY);
-  }, []);
+  }, [user]);
 
   return { history, addScan, removeScan, clearHistory, isLoaded };
+}
+
+function getVerdictFromScore(score: number): 'Great' | 'Good' | 'Caution' | 'Avoid' {
+  if (score >= 80) return 'Great';
+  if (score >= 60) return 'Good';
+  if (score >= 40) return 'Caution';
+  return 'Avoid';
 }
