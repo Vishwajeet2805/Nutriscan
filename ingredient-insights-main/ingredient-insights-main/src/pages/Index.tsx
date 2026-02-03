@@ -1,18 +1,19 @@
-import { useEffect } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
 import { toast } from 'sonner';
 import { Header } from '@/components/nutriscan/Header';
 import { HeroSection } from '@/components/nutriscan/HeroSection';
-import { IngredientInput } from '@/components/nutriscan/IngredientInput';
-import { AnalysisView } from '@/components/nutriscan/AnalysisView';
-import { ProfileSheet } from '@/components/nutriscan/ProfileSheet';
 import { ScanHistory } from '@/components/nutriscan/ScanHistory';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useScanHistory } from '@/hooks/useScanHistory';
 import { useAuth } from '@/hooks/useAuth';
 import { AnalysisResult } from '@/types/nutriscan';
 import { Loader2 } from 'lucide-react';
+
+// Lazy load heavy components that are conditionally rendered
+const IngredientInput = lazy(() => import('@/components/nutriscan/IngredientInput').then(m => ({ default: m.IngredientInput })));
+const AnalysisView = lazy(() => import('@/components/nutriscan/AnalysisView').then(m => ({ default: m.AnalysisView })));
+const ProfileSheet = lazy(() => import('@/components/nutriscan/ProfileSheet').then(m => ({ default: m.ProfileSheet })));
 
 type AppView = 'home' | 'input' | 'analysis';
 
@@ -159,33 +160,39 @@ export default function Index() {
 
       {view === 'input' && (
         <div className="container mx-auto px-4 py-8 max-w-lg">
-          <IngredientInput
-            onAnalyze={handleAnalyze}
-            isLoading={isAnalyzing}
-            onClose={() => setView('home')}
-          />
+          <Suspense fallback={<div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}>
+            <IngredientInput
+              onAnalyze={handleAnalyze}
+              isLoading={isAnalyzing}
+              onClose={() => setView('home')}
+            />
+          </Suspense>
         </div>
       )}
 
       {view === 'analysis' && analysisResult && (
-        <AnalysisView
-          result={analysisResult}
-          originalInput={originalInput}
-          profile={profile}
-          onBack={() => setView('home')}
-          onNewScan={() => {
-            setAnalysisResult(null);
-            setView('input');
-          }}
-        />
+        <Suspense fallback={<div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}>
+          <AnalysisView
+            result={analysisResult}
+            originalInput={originalInput}
+            profile={profile}
+            onBack={() => setView('home')}
+            onNewScan={() => {
+              setAnalysisResult(null);
+              setView('input');
+            }}
+          />
+        </Suspense>
       )}
 
-      <ProfileSheet
-        isOpen={isProfileOpen}
-        onClose={() => setIsProfileOpen(false)}
-        profile={profile}
-        onUpdateProfile={updateProfile}
-      />
+      <Suspense fallback={null}>
+        <ProfileSheet
+          isOpen={isProfileOpen}
+          onClose={() => setIsProfileOpen(false)}
+          profile={profile}
+          onUpdateProfile={updateProfile}
+        />
+      </Suspense>
     </div>
   );
 }
