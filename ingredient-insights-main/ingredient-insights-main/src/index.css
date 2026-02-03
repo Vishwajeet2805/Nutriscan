@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Quicksand:wght@400;500;600;700&display=swap');
+/* Fonts loaded via HTML for non-blocking rendering */
 
 @tailwind base;
 @tailwind components;
@@ -12,12 +12,12 @@
     --card-foreground: 210 20% 20%;
     --popover: 0 0% 100%;
     --popover-foreground: 210 20% 20%;
-    --primary: 199 90% 55%;
+    --primary: 199 90% 42%;
     --primary-foreground: 0 0% 100%;
     --secondary: 180 60% 50%;
     --secondary-foreground: 210 20% 15%;
     --muted: 210 20% 92%;
-    --muted-foreground: 210 15% 45%;
+    --muted-foreground: 210 20% 35%;
     --accent: 260 65% 60%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 75% 55%;
